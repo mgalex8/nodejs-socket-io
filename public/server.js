@@ -11,7 +11,7 @@ const server = express()
     .use((req, res) => res.sendFile(INDEX) )
     .listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
-const jwtToken = 'someTokenStringGenerateByJWT';
+// const jwtToken = 'someTokenStringGenerateByJWT';
 
 const wss = new WebSocketServer({
     server: server,
@@ -43,16 +43,14 @@ var webSockets = {}; // userID: webSocket
 wss.on('connection', (ws) => {
     console.log('Client connected');
 
-    var userId = ws.upgradeReq.headers['raadaar_user'];
-    console.log(userId);
+    var userId = ws.upgradeReq.headers['raadaar-user'];
     if (userId == undefined) {
         ws.on('message', function(message) {
-            ws.send(JSON.stringify({error: 403, msg: 'Not authentification'}));
+            ws.send(JSON.stringify({error: 401, msg: 'Unauthorized'}));
         });
     }
     else {
         webSockets[userId] = ws;
-        console.log('connected: ' + userId);
 
         ws.on('message', function (message) {
             let messageData;
