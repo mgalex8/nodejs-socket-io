@@ -1,7 +1,7 @@
 'use strict';
 
 const express = require('express');
-const SocketServer = require('ws').Server;
+const WebSocketServer = require('ws').Server;
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
@@ -11,49 +11,68 @@ const server = express()
     .use((req, res) => res.sendFile(INDEX) )
     .listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
-const wss = new SocketServer({ server });
+const jwtToken = 'someTokenStringGenerateByJWT';
+
+const wss = new WebSocketServer({
+    server: server,
+    /**
+     * TODO: Header response from server
+     */
+    // options: {
+    //     headers: {
+    //         'X-AUTH-TOKEN': jwtToken,
+    //     },
+    // },
+
+    /**
+     * TODO: Verify JWT AUTH token
+     */
+    // verifyClient: function(info, done) {
+    //     let query = url.parse(info.req.url, true).query;
+    //     jwt.verify(query.token, config.jwt.secret, function(err, decoded) {
+    //         if (err) return done(false, 403, 'Not valid token');
+    //
+    //         // Saving the decoded JWT on the client would be nice
+    //         done(true);
+    //     });
+    // }
+});
 
 var webSockets = {}; // userID: webSocket
 
 wss.on('connection', (ws) => {
     console.log('Client connected');
 
-    var userID = 1;//parseInt(ws.upgradeReq.url.substr(1), 10)
-    webSockets[userID] = ws;
-    //console.log('connected: ' + userID + ' in ' + Object.getOwnPropertyNames(webSockets));
+    var userId = ws.upgradeReq.headers['raadaar_user'];
+    console.log(userId);
+    if (userId == undefined) {
+        ws.on('message', function(message) {
+            ws.send(JSON.stringify({error: 403, msg: 'Not authentification'}));
+        });
+    }
+    else {
+        webSockets[userId] = ws;
+        console.log('connected: ' + userId);
 
-    // Forward Message
-    //
-    // Receive               Example
-    // [toUserID, text]      [2, "Hello, World!"]
-    //
-    // Send                  Example
-    // [fromUserID, text]    [1, "Hello, World!"]
-    ws.on('message', function(message) {
-        console.log('received from ' + userID + ': ' + message);
+        ws.on('message', function (message) {
+            let messageData;
+            try {
+                messageData = JSON.parse(message);
 
-        let data;
-        try {
-            data = JSON.parse(message);
-        }
-        catch (e) {
-            console.log(e.message);
-            ws.send(JSON.stringify({error: e.message}));
-        }
+                var wsTo = webSockets[messageData.to_user];
+                if (wsTo) {
+                    messageData.from_user = userId;
+                    messageData.to_user = undefined;
+                    wsTo.send(JSON.stringify(messageData));
+                }
+            }
+            catch (e) {
+                ws.send(JSON.stringify({err: 500, msg: e.message}));
+            }
+        });
+    }
 
-        // var toUserWebSocket = webSockets[data.user_id];
-        // if (toUserWebSocket) {
-        //     console.log('sent to ' + data.user_id + ': ' + JSON.stringify(data));
-        //     data.from_user_id = userID;
-        //     toUserWebSocket.send(JSON.stringify(data));
-        // }
+    ws.on('close', function(close) {
+        console.log('Client disconnected');
     });
-
-    ws.on('close', () => console.log('Client disconnected'));
 });
-
-setInterval(() => {
-    wss.clients.forEach((client) => {
-        client.send(new Date().toTimeString());
-    });
-}, 1000);
