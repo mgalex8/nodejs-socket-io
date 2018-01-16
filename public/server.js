@@ -16,7 +16,7 @@ io.sockets.on('connection', function (socket) {
         var userId = (socket.id).toString();
         var time = (new Date).toLocaleTimeString();
         
-        //socket.json.emit({'action': 'connection', 'id': userId, 'time': time});
+        socket.json.emit('message', {'action': 'connection', 'id': userId, 'time': time});
         
         //socket.broadcast.json.send({'event': 'user joined', 'name': userId, 'time': time});
         //console.log('Clients: ' + getClients());
