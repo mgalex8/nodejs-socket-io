@@ -1,61 +1,45 @@
-'use strict';
+var io = require('socket.io').listen(8080); 
 
-const express = require('express');
-const socketIO = require('socket.io');
-const path = require('path');
+function getClients () {
+    let clientsList = [];
 
-const PORT = process.env.PORT || 3000;
-const INDEX = path.join(__dirname, 'index.html');
-
-const server = express()
-  .use((req, res) => res.sendFile(INDEX) )
-  .listen(PORT, () => console.log(`Listening on ${ PORT }`));
-
-const io = socketIO(server);
-
-let webSockets = new Map();
-
-io.on('connection', (socket) => {
-    console.log('Client connected');
-
-    var userId = socket.request.headers['raadaar-user'];
-    if (userId == undefined) {
-        console.log('Unauthorized');
-        socket.emit('message', {error: 401, msg: 'Unauthorized'});
-        socket.disconnect();
+    for (let client in io.sockets.connected) {
+        clientsList.push(client);
     }
-    else {
-        socket.username = userId;
-        webSockets[userId] = socket;
 
-        socket.on('message', function (message) {
-            let messageData;
+    return clientsList;
+}
+
+io.sockets.on('connection', function (socket) {
+    try {
+        console.log('connected');
+        var userId = (socket.id).toString();
+        var time = (new Date).toLocaleTimeString();
+        
+        socket.json.send({'event': 'connected', 'name': userId, 'time': time});
+        
+        socket.broadcast.json.send({'event': 'user joined', 'name': userId, 'time': time});
+        
+        console.log('Clients: ' + getClients());
+
+        socket.on('message', function (msg) {
             try {
-                messageData = JSON.parse(message);
-
-                if (messageData.to_user == undefined) {
-                    console.log('Missing required to_user');
-                    socket.emit('error', {error:422, msg: 'Missing required to_user'});
+                var message = JSON.parse(msg);
+                if (message.to_user) {
+                    io.to(message.to_user).emit(message.text);
+                    console.log('message sent!');
                 }
-
-                let socketTo = webSockets[messageData.to_user];
-                if (socketTo) {
-                    messageData.from_user = userId;
-                    messageData.to_user = undefined;
-                    socketTo.emit('notification', messageData);
-                }
-            }
-            catch (e) {
-                console.log(e.message);
-                socket.emit('error', {err: 500, msg: e.message});
-            }
+            } catch (e) {
+                console.log('ERR: ' + e);
+            }   
         });
+        
+        socket.on('disconnect', function() {
+            var time = (new Date).toLocaleTimeString();
+            io.sockets.json.send({'event': 'userSplit', 'name': userId, 'time': time});
+        });
+
+    } catch (e) {
+        console.log('ERR: ' + e);
     }
-
-    socket.on('disconnect', function () {
-        console.log('Client disconnected');
-        webSockets[socket.username] = undefined;
-    });
 });
-
-//setInterval(() => io.emit('time', new Date().toTimeString()), 1000);
