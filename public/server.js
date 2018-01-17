@@ -1,7 +1,27 @@
-var logger = require('heroku-logger');
+'use strict';
 
-var io = require('socket.io').listen(3000);
 
+//var io = require('socket.io').listen(3000);
+
+const express = require('express');
+const socketIO = require('socket.io');
+const path = require('path');
+const logger = require('heroku-logger');
+
+const PORT = process.env.PORT || 3000;
+const INDEX = path.join(__dirname, 'index.html');
+
+const server = express()
+  .use((req, res) => res.sendFile(INDEX) )
+  .listen(PORT, () => console.log(`Listening on ${ PORT }`));
+
+const io = socketIO(server);
+
+/**
+ * [getClients description]
+ *
+ * @return Array
+ */
 function getClients () {
     let clientsList = [];
     for (let client in io.sockets.connected) {
@@ -10,11 +30,17 @@ function getClients () {
     return clientsList;
 }
 
+
 // const radarUserConnections = new Map();
 
+/**
+ * Socket.io connection event
+ *
+ * @param  Socket socket) {
+ * @return void
+ */
 io.sockets.on('connection', function (socket) {
     try {
-        console.log('connected');
         logger.info('connected');
 
         var userId = (socket.id).toString();
@@ -33,11 +59,11 @@ io.sockets.on('connection', function (socket) {
                     let toConnect = message.to;
                     message.to = undefined;
                     io.to(toConnect).json.send(message);
+
                     logger.info('Clients: '+getClients());
                 }
             } catch (e) {
                 socket.json.emit('exception', {err: 500, msg: e.message});
-                console.log('Exception: ' + e.message);
                 logger.error('Exception: ' + e.message);
             }
         });
@@ -52,12 +78,10 @@ io.sockets.on('connection', function (socket) {
 
         socket.on('disconnect', function() {
             //var time = (new Date).toLocaleTimeString();
-            console.log('disconnect client');
             logger.info('disconnect client');
         });
 
     } catch (e) {
-        console.log('ERR: ' + e);
-        logger.error('ERR: `msg`', { argument: 'msg', value: e.message })
+        logger.error('ERR: `msg`', { argument: 'msg', value: e.message });
     }
 });
