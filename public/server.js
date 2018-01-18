@@ -33,9 +33,19 @@ function getClients () {
 }
 
 function getUsers() {
+    let data = [];
     radarUsers.forEach(function(value, key) {
-
+        data.push(key+":"+value);
     });
+    return data;
+}
+
+function getHeaders(headers) {
+    let data = [];
+    for (let header in headers) {
+        data.push(header +':'+headers[header]);
+    }
+    return data;
 }
 
 /**
@@ -47,27 +57,42 @@ function getUsers() {
 io.sockets.on('connection', function (socket) {
     try {
         logger.info('connected');
+        //logger.info('headers: ' + getHeaders(socket.request.headers));
 
-        let userId = socket.request.headers['raadaar-userid'];
-        if (userId == undefined) {
-            socket.json.emit('exception', {err: 401, msg: 'Unauthorized'});
-            logger.error('Unauthorized connection');
-        }
-        else {
+        socket.auth = false;
+
+        // // let userId = socket.request.headers['raadaar_userid'];
+        // if (userId == undefined) {
+        //     socket.json.emit('exception', {err: 401, msg: 'Unauthorized'});
+        //     logger.error('Unauthorized connection');
+        // }
+        // else {
             let sid = (socket.id).toString();
             let time = (new Date).toLocaleTimeString();
-            socket.emit('message', {'action': 'connection', 'id': sid, 'time': time});
+
+            socket.on('authenticate', function(data){
+                logger.info('auth');
+                if (data.raadaar_userid !== undefined) {
+                    socket.emit('authenticate', {'action': 'connection', 'time': time});
+
+                    socket.auth = true;
+                    socket.radarUserId = data.raadaar_userid;
+                    radarUsers.set(data.raadaar_userid, sid);
+
+                    // logger.info("Authenticated socket " + socket.id);
+                    // logger.info('Users: ' + getUsers());
+                }
+            });
 
             // set raadaar userId connection
-            radarUsers.set(userId, sid);
+            // radarUsers.set(userId, sid);
 
             //socket.broadcast.json.send({'event': 'user joined', 'name': userId, 'time': time});
-            logger.info('Clients: '+getClients());
-            logger.info('Users: '+getUsers());
+            //logger.info('Clients: ' + getClients());
 
             socket.on('message', function (msg) {
                 try {
-                    var message = JSON.parse(msg);
+                    var message = msg;
                     if (message.to) {
                         let toConnect = radarUsers.get(message.to);
                         message.from = message.to;
@@ -80,7 +105,7 @@ io.sockets.on('connection', function (socket) {
                     logger.error('Exception: ' + e.message);
                 }
             });
-        }
+        // }
 
         socket.on('exception', function(data) {
             socket.json.send('exception', data);
@@ -91,7 +116,9 @@ io.sockets.on('connection', function (socket) {
         // });
 
         socket.on('disconnect', function() {
-            radarUsers.delete(userId);
+            if (radarUsers.has(socket.radarUserId)) {
+                radarUsers.delete(socket.radarUserId);
+            }
             //var time = (new Date).toLocaleTimeString();
             logger.info('disconnect client');
         });
@@ -99,4 +126,12 @@ io.sockets.on('connection', function (socket) {
     } catch (e) {
         logger.error('ERR: `msg`', { argument: 'msg', value: e.message });
     }
+
+    setTimeout(function() {
+        //If the socket didn't authenticate, disconnect it
+        if (!socket.auth) {
+          socket.disconnect('unauthorized');
+        }
+    }, 2000);
+
 });
