@@ -17,6 +17,8 @@ const server = express()
 
 const io = socketIO(server);
 
+const radarUsers = new Map();
+
 /**
  * [getClients description]
  *
@@ -30,8 +32,11 @@ function getClients () {
     return clientsList;
 }
 
+function getUsers() {
+    radarUsers.forEach(function(value, key) {
 
-// const radarUserConnections = new Map();
+    });
+}
 
 /**
  * Socket.io connection event
@@ -43,30 +48,39 @@ io.sockets.on('connection', function (socket) {
     try {
         logger.info('connected');
 
-        var userId = (socket.id).toString();
-        var time = (new Date).toLocaleTimeString();
+        let userId = socket.request.headers['raadaar-userid'];
+        if (userId == undefined) {
+            socket.json.emit('exception', {err: 401, msg: 'Unauthorized'});
+            logger.error('Exception: ' + e.message);
+        }
+        else {
+            let sid = (socket.id).toString();
+            let time = (new Date).toLocaleTimeString();
+            socket.emit('message', {'action': 'connection', 'id': sid, 'time': time});
 
-        socket.json.emit('message', {'action': 'connection', 'id': userId, 'time': time});
+            // set raadaar userId connection
+            radarUsers.set(userId, sid);
 
-        //socket.broadcast.json.send({'event': 'user joined', 'name': userId, 'time': time});
-        //console.log('Clients: ' + getClients());
-        logger.info('Clients: '+getClients());
+            //socket.broadcast.json.send({'event': 'user joined', 'name': userId, 'time': time});
+            logger.info('Clients: '+getClients());
+            logger.info('Users: '+getUsers());
 
-        socket.on('message', function (msg) {
-            try {
-                var message = JSON.parse(msg);
-                if (message.to) {
-                    let toConnect = message.to;
-                    message.to = undefined;
-                    io.to(toConnect).json.send(message);
+            socket.on('message', function (msg) {
+                try {
+                    var message = JSON.parse(msg);
+                    if (message.to) {
+                        let toConnect = radarUsers.get(message.to);
+                        message.from = message.to;
+                        message.to = undefined;
 
-                    logger.info('Clients: '+getClients());
+                        io.to(toConnect).json.send(message);
+                    }
+                } catch (e) {
+                    socket.json.emit('exception', {err: 500, msg: e.message});
+                    logger.error('Exception: ' + e.message);
                 }
-            } catch (e) {
-                socket.json.emit('exception', {err: 500, msg: e.message});
-                logger.error('Exception: ' + e.message);
-            }
-        });
+            });
+        }
 
         socket.on('exception', function(data) {
             socket.json.send('exception', data);
@@ -77,6 +91,7 @@ io.sockets.on('connection', function (socket) {
         // });
 
         socket.on('disconnect', function() {
+            radarUsers.delete(userId);
             //var time = (new Date).toLocaleTimeString();
             logger.info('disconnect client');
         });
