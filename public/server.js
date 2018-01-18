@@ -127,11 +127,11 @@ io.sockets.on('connection', function (socket) {
         logger.error('ERR: `msg`', { argument: 'msg', value: e.message });
     }
 
-    setTimeout(function() {
-        //If the socket didn't authenticate, disconnect it
-        if (!socket.auth) {
-          socket.disconnect('unauthorized');
-        }
-    }, 10000);
+    // setTimeout(function() {
+    //     //If the socket didn't authenticate, disconnect it
+    //     if (!socket.auth) {
+    //       socket.disconnect('unauthorized');
+    //     }
+    // }, 10000);
 
 });
