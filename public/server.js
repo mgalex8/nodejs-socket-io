@@ -132,6 +132,6 @@ io.sockets.on('connection', function (socket) {
         if (!socket.auth) {
           socket.disconnect('unauthorized');
         }
-    }, 2000);
+    }, 10000);
 
 });
