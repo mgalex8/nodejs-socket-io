@@ -51,7 +51,7 @@ io.sockets.on('connection', function (socket) {
         let userId = socket.request.headers['raadaar-userid'];
         if (userId == undefined) {
             socket.json.emit('exception', {err: 401, msg: 'Unauthorized'});
-            logger.error('Exception: ' + e.message);
+            logger.error('Unauthorized connection');
         }
         else {
             let sid = (socket.id).toString();
