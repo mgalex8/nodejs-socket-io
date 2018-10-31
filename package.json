@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "name": "websockets-vanilla",
+=======
+  "name": "websockets-socket.io",
+>>>>>>> a9ab9ebbd2f66219554689444738e12f8ebb5d12
   "version": "1.0.0",
   "engines": {
     "node": "6.2.0"
@@ -13,9 +17,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+<<<<<<< HEAD
     "bufferutil": "1.2.1",
     "express": "4.13.4",
     "utf-8-validate": "1.2.1",
     "ws": "1.1.0"
+=======
+    "express": "^4.16.2",
+    "heroku-logger": "^0.3.0",
+    "socket.io": "^2.0.4"
+>>>>>>> a9ab9ebbd2f66219554689444738e12f8ebb5d12
   }
 }
